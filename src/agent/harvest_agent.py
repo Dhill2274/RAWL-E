@@ -66,6 +66,7 @@ class HarvestAgent(DQNAgent):
         self.current_action = None
         
     def interaction_module(self, action):
+        #!!!Pass in the weights that were used to give to the norms base (i.e pass the norms base the reward summed and weighted)!!!#
         """
         Interaction Module (Algorithm 3) receives action from DQN and performs transition
         Observes state before acting and passes view to Norms Module for behaviour and norms handling (Algorithm 2)
@@ -85,13 +86,14 @@ class HarvestAgent(DQNAgent):
             self.ethics_module.day = self.model.get_day()
             can_help = self._update_ethics(society_well_being)
 
-        reward = self._perform_action(action)
+        reward = np.zeros(2)
+        reward[0] = self._perform_action(action)
         next_state = self.observe()
 
         if self.agent_type != "baseline":
-            reward += self._ethics_sanction(can_help)
+            reward[1] += self._ethics_sanction(can_help)
 
-        done, reward = self._update_attributes(reward)
+        done, reward[0] = self._update_attributes(reward[0])
 
         if self.write_norms:
             self.norms_module.update_behaviour_base(antecedent, self.actions[action], reward, self.model.get_day())

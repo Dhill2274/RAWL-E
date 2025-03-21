@@ -25,14 +25,16 @@ class DQN:
         delta -- parameter for Huber loss
     """
     def __init__(self,actions,n_features,training,checkpoint_path=None,shared_replay_buffer=None):
-        self.gamma = 0.95
-        self.lr = 0.0001
-        self.total_episode_reward = 0
-        self.batch_size = 64
-        self.hidden_units = 128
-        self.n_features = n_features
         self.actions = actions
         self.n_actions = len(actions)
+
+        self.gamma = 0.95
+        self.lr = 0.0001
+        self.batch_size = 64
+        self.hidden_units = 128
+
+        self.total_episode_reward = 0
+        self.n_features = n_features
         self.training = training
         self.checkpoint_path = checkpoint_path
         if shared_replay_buffer == None:
@@ -67,13 +69,28 @@ class DQN:
         #where done, actual value is reward; if not done, actual value is discounted rewards
         actual_values = np.where(dones, rewards, rewards+self.gamma*value_next)
 
+        target_indiv = np.where(dones, rewards[:,0], rewards[:,0] + self.gamma*value_next[:,0])
+        target_ethic = np.where(dones, rewards[:,1], rewards[:,1] + self.gamma*value_next[:,1])
+
         #gradient tape uses automatic differentiation to compute gradients of loss and records operations for back prop
         with tf.GradientTape() as tape:
+            Q_pred_all = self.predict(states)
             #one hot to select the action which was chosen; find predicted q value; reduce to tensor of the batch size
             selected_action_values = tf.math.reduce_sum(
                 self.predict(states) * tf.one_hot(actions, self.n_actions), axis=1) #mask logits through one hot
+            
+            batch_indices = tf.range(self.batch_size, dtype=tf.int32)  # results in [0, 1, 2]
+            idx = tf.stack([batch_indices, actions], axis=1)
+            Q_pred_sa = tf.gather_nd(Q_pred_all, idx)
+
+            # compute separate Huber losses
             huber = losses.Huber(self.delta)
-            loss = huber(actual_values, selected_action_values)
+            loss_indiv  = huber(target_indiv,  Q_pred_sa[:,0])
+            loss_ethic  = huber(target_ethic,  Q_pred_sa[:,1])
+
+        # sum them => multi-objective loss
+        loss = loss_indiv + loss_ethic
+        
         #trainable variables are automatically watched
         variables = self.dqn.trainable_variables
         #compute gradients w.r.t. loss
@@ -90,7 +107,11 @@ class DQN:
             action = self.actions.index(a)
         else:
             action_values = self.predict(np.atleast_2d(observation))
-            action = np.argmax(action_values)
+            Q_pred_all = action_values[0]
+
+            w_indiv, w_ethic = 1.0, 0.3
+            scores = w_indiv*Q_pred_all[:,0] + w_ethic*Q_pred_all[:,1]
+            action = np.argmax(scores)
         return action
     
     def predict(self, inputs):

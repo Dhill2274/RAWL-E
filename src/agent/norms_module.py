@@ -82,7 +82,7 @@ class NormsModule():
         current_norm = ",".join([antecedent,consequent])
         norm = self.behaviour_base.get(current_norm)
         if norm != None:
-            norm["reward"] += reward
+            norm["reward"] += (reward[0] + reward[1])
             norm["numerosity"] += 1
             self._update_norm_fitness(norm)
         else:

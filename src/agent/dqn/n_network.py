@@ -20,10 +20,13 @@ class NNetwork(keras.Model):
         self.n_features = n_features
         self.hidden_units = hidden_units
         self.n_actions = n_actions
+
+        self.output_size = n_actions * 2
+
         self.input_layer = layers.InputLayer(shape=n_features,)
         self.hidden_layer_1 = layers.Dense(hidden_units, activation="relu", kernel_initializer=initialiser.HeNormal())
         self.hidden_layer_2 = layers.Dense(hidden_units, activation="relu", kernel_initializer=initialiser.HeNormal())
-        self.output_layer = layers.Dense(n_actions, activation="linear", kernel_initializer=initialiser.HeNormal())
+        self.output_layer = layers.Dense(self.output_size, activation="linear", kernel_initializer=initialiser.HeNormal())
         
         self.model = keras.Sequential([
             self.input_layer,
@@ -34,6 +37,9 @@ class NNetwork(keras.Model):
         
     def call(self, inputs):
         z = self.model(inputs)
+
+        batch_size = tensorflow.shape(z)[0]
+        z = tensorflow.reshape(z, [batch_size, self.n_actions, 2])
         return z
     
     def get_config(self):

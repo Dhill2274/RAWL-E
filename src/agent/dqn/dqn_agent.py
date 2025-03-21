@@ -41,7 +41,7 @@ class DQNAgent(Agent):
         self.learn_step = 0
         self.replace_target_iter = 50
         self.agent_type = agent_type
-        self.current_reward = 0
+        self.current_reward = np.zeros((1, 2))
         self.training = training
         if self.training:
             self.q_checkpoint_path = checkpoint_path+self.agent_type+"/agent_"+str(unique_id)+"/q_model_variables.keras"
