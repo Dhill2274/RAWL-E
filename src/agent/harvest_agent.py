@@ -65,7 +65,7 @@ class HarvestAgent(DQNAgent):
         self.off_grid = False
         self.current_action = None
         
-    def interaction_module(self, action):
+    def interaction_module(self, action, weights):
         #!!!Pass in the weights that were used to give to the norms base (i.e pass the norms base the reward summed and weighted)!!!#
         """
         Interaction Module (Algorithm 3) receives action from DQN and performs transition
@@ -96,7 +96,7 @@ class HarvestAgent(DQNAgent):
         done, reward[0] = self._update_attributes(reward[0])
 
         if self.write_norms:
-            self.norms_module.update_behaviour_base(antecedent, self.actions[action], reward, self.model.get_day())
+            self.norms_module.update_behaviour_base(antecedent, self.actions[action], reward, self.model.get_day(), weights)
 
         return reward, next_state, done
         

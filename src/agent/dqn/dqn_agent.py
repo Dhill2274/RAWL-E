@@ -80,12 +80,12 @@ class DQNAgent(Agent):
             observation = self.observe()
             if len(observation) != self.n_features:
                 raise NumFeaturesException(self.n_features, len(observation))
-            action = self.q_network.choose_action(observation,self.epsilon)
-            self.current_reward, next_state, self.done = self.interaction_module(action)
+            action, weights = self.q_network.choose_action(observation,self.epsilon)
+            self.current_reward, next_state, self.done = self.interaction_module(action, weights)
             if self.training:
                 self._learn(observation, action, self.current_reward, next_state, self.done)
                 self.epsilon = max(self.min_exploration_prob, np.exp(-self.expl_decay*self.model.episode))
-            self.total_episode_reward += (self.current_reward[0] + self.current_reward[1])
+            self.total_episode_reward += ((weights[0] * self.current_reward[0]) + (weights[1] * self.current_reward[1]))
 
     def save_models(self):
         """

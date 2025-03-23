@@ -88,16 +88,14 @@ class DQN:
             loss_indiv  = huber(target_indiv,  Q_pred_sa[:,0])
             loss_ethic  = huber(target_ethic,  Q_pred_sa[:,1])
 
-        # sum them => multi-objective loss
-        loss = loss_indiv + loss_ethic
-        print(loss)
+
+            # sum them => multi-objective loss
+            loss = loss_indiv + loss_ethic
         
         #trainable variables are automatically watched
         variables = self.dqn.trainable_variables
         #compute gradients w.r.t. loss
         gradients = tape.gradient(loss, variables)
-        print(variables)
-        print(gradients)
         self.optimiser.apply_gradients(grads_and_vars=zip(gradients, variables))
         return loss
 
@@ -114,8 +112,9 @@ class DQN:
 
             w_indiv, w_ethic = 1.0, 0.3
             scores = w_indiv*Q_pred_all[:,0] + w_ethic*Q_pred_all[:,1]
+            weights = [w_indiv, w_ethic]
             action = np.argmax(scores)
-        return action
+        return action, weights
     
     def predict(self, inputs):
         """
