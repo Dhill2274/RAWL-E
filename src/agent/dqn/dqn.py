@@ -67,7 +67,7 @@ class DQN:
         #predict q value using target net
         value_next = np.max(TargetNet.predict(states_next), axis=1)
         #where done, actual value is reward; if not done, actual value is discounted rewards
-        actual_values = np.where(dones, rewards, rewards+self.gamma*value_next)
+        #actual_values = np.where(dones, rewards, rewards+self.gamma*value_next)
 
         target_indiv = np.where(dones, rewards[:,0], rewards[:,0] + self.gamma*value_next[:,0])
         target_ethic = np.where(dones, rewards[:,1], rewards[:,1] + self.gamma*value_next[:,1])
@@ -76,8 +76,8 @@ class DQN:
         with tf.GradientTape() as tape:
             Q_pred_all = self.predict(states)
             #one hot to select the action which was chosen; find predicted q value; reduce to tensor of the batch size
-            selected_action_values = tf.math.reduce_sum(
-                self.predict(states) * tf.one_hot(actions, self.n_actions), axis=1) #mask logits through one hot
+            #selected_action_values = tf.math.reduce_sum(
+            #    self.predict(states) * tf.one_hot(actions, self.n_actions), axis=1) #mask logits through one hot
             
             batch_indices = tf.range(self.batch_size, dtype=tf.int32)  # results in [0, 1, 2]
             idx = tf.stack([batch_indices, actions], axis=1)
@@ -90,11 +90,14 @@ class DQN:
 
         # sum them => multi-objective loss
         loss = loss_indiv + loss_ethic
+        print(loss)
         
         #trainable variables are automatically watched
         variables = self.dqn.trainable_variables
         #compute gradients w.r.t. loss
         gradients = tape.gradient(loss, variables)
+        print(variables)
+        print(gradients)
         self.optimiser.apply_gradients(grads_and_vars=zip(gradients, variables))
         return loss
 
