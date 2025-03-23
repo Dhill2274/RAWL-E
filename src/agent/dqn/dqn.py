@@ -106,6 +106,7 @@ class DQN:
         if np.random.uniform(0,1) < epsilon:
             a = np.random.choice(self.actions)
             action = self.actions.index(a)
+            weights = [1, 1]
         else:
             action_values = self.predict(np.atleast_2d(observation))
             Q_pred_all = action_values[0]
