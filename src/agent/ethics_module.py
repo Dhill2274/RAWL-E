@@ -46,16 +46,23 @@ class EthicsModule():
     def _maximin_sanction(self, previous_min, number_of_previous_mins, society_well_being):
         current_min, current_number_of_current_mins = self._maximin_welfare(society_well_being)
         current_number_of_previous_mins = np.count_nonzero(society_well_being==previous_min)
+
+        # Differences for partial penalty/reward
+        min_diff = current_min - previous_min
+        count_diff = number_of_previous_mins - current_number_of_previous_mins
+        beta = 0.05
+        alpha = 0.04
+
         #if the global min has been made better, pos reward
         if current_min > previous_min:
-            return self.sanction
+            return self.sanction + (alpha * min_diff)
         #if the global min has been made worse, neg reward
         elif current_min < previous_min:
-            return -self.sanction
+            return -self.sanction + (alpha * min_diff)
         #if the global min has not changed, but there are fewer instances of it, pos reward
         elif current_number_of_previous_mins < number_of_previous_mins and current_min == previous_min:
-            return self.sanction
+            return self.sanction + (beta * count_diff)
         #if the global min has not changed, and there are more or same number of instances of it, neg reward
         elif current_number_of_previous_mins > number_of_previous_mins and current_min == previous_min:
-            return -self.sanction
+            return -self.sanction + (beta * count_diff)
         return 0
