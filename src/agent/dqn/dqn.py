@@ -106,11 +106,12 @@ class DQN:
         if np.random.uniform(0,1) < epsilon:
             a = np.random.choice(self.actions)
             action = self.actions.index(a)
+            weights = [1, 1]
         else:
             action_values = self.predict(np.atleast_2d(observation))
             Q_pred_all = action_values[0]
 
-            w_indiv, w_ethic = 1.0, 0.3
+            w_indiv, w_ethic = 1.0, 1.0
             scores = w_indiv*Q_pred_all[:,0] + w_ethic*Q_pred_all[:,1]
             weights = [w_indiv, w_ethic]
             action = np.argmax(scores)
