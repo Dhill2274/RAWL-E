@@ -3,6 +3,14 @@ from tensorflow import keras
 from keras import layers
 from keras import initializers as initialiser
 
+gpus = tensorflow.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tensorflow.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+
 class NNetwork(keras.Model):
     """
     NNetwork handles the network

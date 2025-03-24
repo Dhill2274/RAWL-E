@@ -4,6 +4,14 @@ import tensorflow as tf
 import keras
 from keras import losses
 
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+
 class DQN:
     """
     DQN handles network training, choosing actions, prediction
