@@ -30,6 +30,7 @@ class DQNAgent(Agent):
     def __init__(self,unique_id,model,agent_type,actions,training,checkpoint_path,epsilon,shared_replay_buffer=None):
         super().__init__(unique_id, model)
         self.epsilon = epsilon
+        self.w_ethic = 1
         self.min_exploration_prob = 0.01
         self.expl_decay = 0.001
         self.total_episode_reward = 0
@@ -80,12 +81,12 @@ class DQNAgent(Agent):
             observation = self.observe()
             if len(observation) != self.n_features:
                 raise NumFeaturesException(self.n_features, len(observation))
-            action, weights = self.q_network.choose_action(observation,self.epsilon)
-            self.current_reward, next_state, self.done = self.interaction_module(action, weights)
+            action = self.q_network.choose_action(observation,self.epsilon, self.w_ethic)
+            self.current_reward, next_state, self.done = self.interaction_module(action, self.w_ethic)
             if self.training:
                 self._learn(observation, action, self.current_reward, next_state, self.done)
                 self.epsilon = max(self.min_exploration_prob, np.exp(-self.expl_decay*self.model.episode))
-            self.total_episode_reward += ((weights[0] * self.current_reward[0]) + (weights[1] * self.current_reward[1]))
+            self.total_episode_reward += ((self.current_reward[0]) + (self.w_ethic * self.current_reward[1]))
 
     def save_models(self):
         """

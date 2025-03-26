@@ -67,26 +67,26 @@ class NormsModule():
         else:
             return consequent + action
     
-    def update_behaviour_base(self, antecedent, action, reward, day, weights):
+    def update_behaviour_base(self, antecedent, action, reward, day, w_ethic):
         """
         Update current behaviour and then update the age of all behaviours in behaviour base
         If day == clipping frequency, clip behaviour base if it exceeds maximum capacity
         """
-        self._update_behaviour(antecedent,action,reward, weights)
+        self._update_behaviour(antecedent,action,reward, w_ethic)
         self._update_behaviours_age()
         if day % self.norm_clipping_frequency == 0:
             self._clip_behaviour_base()
 
-    def _update_behaviour(self, antecedent, action, reward, weights):
+    def _update_behaviour(self, antecedent, action, reward, w_ethic):
         consequent = self.get_consequent(action)
         current_norm = ",".join([antecedent,consequent])
         norm = self.behaviour_base.get(current_norm)
         if norm != None:
-            norm["reward"] += ((weights[0] * reward[0]) + (weights[1] * reward[1]))
+            norm["reward"] += ((reward[0]) + (w_ethic * reward[1]))
             norm["numerosity"] += 1
             self._update_norm_fitness(norm)
         else:
-            self.behaviour_base[current_norm] = {"reward": ((weights[0] * reward[0]) + (weights[1] * reward[1])),
+            self.behaviour_base[current_norm] = {"reward": ((reward[0]) + (w_ethic * reward[1])),
                                     "numerosity": 1,
                                     "age": 0,
                                     "fitness": 0}

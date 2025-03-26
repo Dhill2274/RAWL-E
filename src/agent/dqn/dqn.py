@@ -99,23 +99,21 @@ class DQN:
         self.optimiser.apply_gradients(grads_and_vars=zip(gradients, variables))
         return loss
 
-    def choose_action(self, observation, epsilon):
+    def choose_action(self, observation, epsilon, w_ethic):
         """
         Choose an action randomly or using network with e-greedy probability
         """
         if np.random.uniform(0,1) < epsilon:
             a = np.random.choice(self.actions)
             action = self.actions.index(a)
-            weights = [1, 1]
         else:
             action_values = self.predict(np.atleast_2d(observation))
             Q_pred_all = action_values[0]
 
-            w_indiv, w_ethic = 1.0, 0.3
+            w_indiv = 1.0
             scores = w_indiv*Q_pred_all[:,0] + w_ethic*Q_pred_all[:,1]
-            weights = [w_indiv, w_ethic]
             action = np.argmax(scores)
-        return action, weights
+        return action
     
     def predict(self, inputs):
         """
