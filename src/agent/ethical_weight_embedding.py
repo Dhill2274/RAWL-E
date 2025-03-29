@@ -1,4 +1,187 @@
 import numpy as np
+from scipy.spatial import ConvexHull
+
+def get_hull(points):
+    """
+
+    Get_hull calculates the positive convex hull of a set of points, limiting it to only consider weights of the form
+    (1, x, x) with x >= 0. If the number of points is too small to calculate the convex hull, the program will simply
+    return the original points.
+
+    :param points: set of 2-D points, they need to be numpy arrays
+    :return: new set of 2-D points, the vertices of the calculated convex hull
+    """
+    try:
+        hull = ConvexHull(points)
+        vertices = []
+        for vertex in hull.vertices:
+            #print(points[vertex])
+            vertices.append(points[vertex])
+
+        vertices = np.array(vertices)
+
+        best_individual = np.argmax(vertices[:, 0])
+
+        #Calculating best ethical
+        best_ethical = -1
+        chosen_ethical = np.max(vertices[:, 1])
+
+        where_ethical = np.argwhere(vertices[:, 1] == chosen_ethical)[:, 0]
+        chosen_individual = np.max(vertices[where_ethical][:, 0])
+
+        for i in range(len(vertices)):
+            if vertices[i][0] == chosen_individual and vertices[i][1] == chosen_ethical:
+                best_ethical = i
+
+        #print(best_individual, best_ethical)
+
+        if best_ethical < best_individual:
+            vertices = np.concatenate((vertices[best_individual:], vertices[:best_ethical+1]),0)
+        else:
+            vertices = vertices[best_individual:best_ethical + 1]
+
+        #print()
+        #print(vertices)
+        return vertices
+    except:
+        return points
+    
+def translate_hull(point, gamma, hull):
+    if len(hull) == 0:
+        hull = [point]
+    else:
+        for i in range(len(hull)):
+            hull[i] = np.multiply(hull[i], gamma)
+            hull[i] = np.add(hull[i], point)
+    return hull
+    
+def compute_next_state(
+    curr, 
+    action_idx,
+    reward,
+):
+    """
+    A purely functional state transition for one agent:
+      - Takes the current agent state (pos, health, berries, etc.)
+      - Takes an integer action index (like 0=move, 1=eat, etc.)
+      - Returns (next_state, reward_2d).
+
+    This function must replicate the environment logic:
+      1. "Move" updates pos if there's a path and sets a certain reward.
+      2. "Eat" updates agent health and berries, sets a reward, etc.
+      3. Then we update attributes (health decay, check if done, etc.).
+    
+    For multi-agent or more complex logic (finding nearest berry, etc.),
+    you'd expand the logic here or pass in extra data.
+    """
+
+    # 1) Copy out fields from the current state
+    health  = curr[0]
+    berries = curr[1]
+    day_to_live = curr[2]
+    well_being = curr[3]
+    dist_to_berry = curr[4]
+
+    # If the agent is already done, we might just return the same state with zero reward
+    if done:
+        return (curr, np.array([0.0, 0.0], dtype=float))
+
+    # 2) Interpret action
+    reward_indiv = reward[1]
+    reward_ethic = reward[0]
+
+    # example mapping: 0=move, 1=eat, 2=throw, etc.
+    if action_idx == 0:
+
+        reward_vector = {0.0: "neutral",0.8: "forage"}
+        # "move"
+        new_x = dist_to_berry[0] - 1
+        if reward_indiv >= 0:
+            reward_indiv -= 1
+        else:
+            reward_indiv += 1
+    elif action_idx == 1:
+
+        reward_vector = {0.8: "eat", -0.1: "no_berries"}
+        # "eat"
+        if berries > 0:
+            # +0.8 for eating, for example
+            health += 0.6
+            berries -= 1
+            reward_indiv += 1.0  # your code uses "eat": 1.0
+        else:
+            reward_indiv += -0.2  # no berries penalty
+    elif action_idx == 2:
+
+        reward_vector = {0.5: "throw",-0.1: "no_benefactor"}
+        # e.g. "throw" a berry
+        if reward_indiv >= 0:
+            reward_indiv -= 1
+        else:
+            reward_indiv += 1
+    # else add more actions if needed
+
+    # 3) Now do your "update_attributes" or "health_decay" logic
+    # for example:
+    health -= 0.1  # decay
+    day_to_live = ((0.6 * berries) + health)/0.1
+
+    if reward_ethic <= 0:
+        done = True
+        reward_indiv += -1.0  # "death" penalty
+    else:
+        day_to_live -= 1
+
+    # 4) Combine into next_state
+    next_state = np.array([health, berries, day_to_live, well_being, dist_to_berry], dtype=float)
+
+    return next_state
+
+def sample_based_partial_convex_hull_iteration(
+    V: dict,
+    replay_buffer: dict,
+    q_network,
+    discount_factor=0.95,
+    max_iterations=7,
+    batch_size=25
+):
+    """
+    V: dict mapping from state -> np.array of shape (N,2)
+    replay_buffer: your experience buffer with keys "s", "a", "r", "s_", "done"
+    Each "r" is shape (2,) i.e. 2D reward.
+    """
+    if len(replay_buffer["s"]) < batch_size:
+        print("Not enough experiences in buffer to do hull iteration.")
+        return V
+    
+    for iteration in range(max_iterations):
+        idxs = np.random.randint(0, len(replay_buffer["s"]), size=batch_size)
+        for i in idxs:
+            s      = np.asarray(replay_buffer["s"][i])  # or your ID for state
+            done   = np.asarray(replay_buffer["done"][i])
+
+
+            action_values = q_network.predict(np.atleast_2d(s.astype('float32')))[0]
+            accum_points = []
+            s_key = tuple(s)
+            old_hull = V.get(s_key, np.zeros((0,2), dtype=np.float32))
+
+            for index, action_reward in enumerate(action_values):
+                # For each action, we get the future hull
+                s_next = tuple(compute_next_state(s, index, action_reward))
+                future_hull = np.zeros((0,2), dtype=np.float32)
+                if not done:
+                    future_hull = V.get(s_next, np.zeros((0,2), dtype=np.float32))
+
+                new_points = translate_hull(action_reward, discount_factor, future_hull)
+                accum_points.extend(new_points)
+            
+                combined   = np.concatenate([old_hull, new_points], axis=0)
+                combined   = np.unique(combined, axis=0)
+            V[s_key] = get_hull(combined)
+        
+        print(f"Iteration {iteration+1}/{max_iterations} done.")
+    return V
 
 def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
     """
@@ -17,6 +200,7 @@ def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
     """
     if hull_points is None or len(hull_points) == 0:
         # Edge case: no points
+        print("No points in hull.")
         return 0.0
     
     # 1) Sort the hull by R1 ascending
@@ -34,6 +218,7 @@ def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
     
     # If there's only one point, there's no conflict
     if len(hull_points) < 2:
+        print("Only one point in hull.")
         return 0.0
     
     # 2) Among the other hull points, find the weight that just ties best_ethical
@@ -66,6 +251,7 @@ def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
             # => we skip unless be0 <= r0
             if np.isclose(be1, r1) and be0 <= r0:
                 # can't strictly dominate under any w
+                print("Infinite weight needed.")
                 return 0.0
             else:
                 # no special constraint needed
@@ -76,14 +262,15 @@ def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
             # and be0 > r0 => numerator > 0
             if denom >= 0 or numerator <= 0:
                 # can't forcibly outscore this competitor with a finite w>0
+                print("No weight needed.")
                 return 0.0
             tie_weight = numerator / denom  # negative / negative => positive
             # To be strictly better, we must exceed tie_weight
             if tie_weight > max_weight:
                 max_weight = tie_weight
+                print("weight", max_weight)
     
     return max_weight
-
 
 def compute_global_ethical_weight(all_state_hulls: dict, epsilon: float) -> float:
     """
