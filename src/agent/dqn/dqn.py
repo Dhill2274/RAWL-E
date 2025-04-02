@@ -49,7 +49,7 @@ class DQN:
         if self.training:
             self.dqn = NNetwork(self.n_features,self.hidden_units, self.n_actions)
         else:
-            self.dqn = keras.models.load_model(self.checkpoint_path,compile=True)
+            self.dqn = keras.models.load_model(self.checkpoint_path,compile=True, custom_objects={"NNetwork": NNetwork})
     
     def train(self, TargetNet):
         """
