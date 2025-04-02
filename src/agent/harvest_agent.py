@@ -216,7 +216,7 @@ class HarvestAgent(DQNAgent):
             return 0
         society_well_being = self.model.get_society_well_being(self, True)
         sanction = self.ethics_module.get_sanction(society_well_being)
-        print(sanction)
+        #print(sanction)
         return sanction
     
     def _update_ethics(self, society_well_being):

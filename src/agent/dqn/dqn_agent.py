@@ -3,7 +3,9 @@ import numpy as np
 from .dqn import DQN
 from abc import abstractmethod
 from src.harvest_exception import NumFeaturesException
+from ..ethical_weight_embedding import sample_based_partial_convex_hull_iteration, compute_global_ethical_weight
 import os
+import sys
 
 class DQNAgent(Agent):
     """
@@ -31,6 +33,7 @@ class DQNAgent(Agent):
         super().__init__(unique_id, model)
         self.epsilon = epsilon
         self.w_ethic = 1
+        self.V = {}
         self.min_exploration_prob = 0.01
         self.expl_decay = 0.001
         self.total_episode_reward = 0
@@ -44,6 +47,7 @@ class DQNAgent(Agent):
         self.agent_type = agent_type
         self.current_reward = np.zeros((1, 2))
         self.training = training
+        self.weight_checkpoint_path = checkpoint_path+self.agent_type+"/agent_"+str(unique_id)+"/weights.txt"
         if self.training:
             self.q_checkpoint_path = checkpoint_path+self.agent_type+"/agent_"+str(unique_id)+"/q_model_variables.keras"
             self.target_checkpoint_path = checkpoint_path+self.agent_type+"/agent_"+str(unique_id)+"/target_model_variables.keras"
@@ -83,10 +87,28 @@ class DQNAgent(Agent):
                 raise NumFeaturesException(self.n_features, len(observation))
             action = self.q_network.choose_action(observation,self.epsilon, self.w_ethic)
             self.current_reward, next_state, self.done = self.interaction_module(action, self.w_ethic)
+            self.total_episode_reward += ((self.current_reward[0]) + (self.w_ethic * self.current_reward[1]))
             if self.training:
                 self._learn(observation, action, self.current_reward, next_state, self.done)
                 self.epsilon = max(self.min_exploration_prob, np.exp(-self.expl_decay*self.model.episode))
-            self.total_episode_reward += ((self.current_reward[0]) + (self.w_ethic * self.current_reward[1]))
+                self.V = sample_based_partial_convex_hull_iteration(self.V, self.shared_replay_buffer, self.q_network)
+                current_w_ethic = compute_global_ethical_weight(self.V)
+                if current_w_ethic > self.w_ethic:
+                    self.w_ethic = current_w_ethic
+                    self.save_weights()
+
+    def save_weights(self):
+        """
+        Save q and target networks to file
+        """
+        try:
+            with open(self.weight_checkpoint_path, 'w', encoding='utf-8') as f:
+                f.write(str(self.w_ethic))
+
+        except IOError as e:
+            sys.stderr.write(f"Error: {e}\n")
+        except Exception as e:
+            sys.stderr.write(f"Error: {e}\n")
 
     def save_models(self):
         """
