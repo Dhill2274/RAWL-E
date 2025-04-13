@@ -159,13 +159,12 @@ def compute_next_state(
 
     return next_state
 
-
 def sample_based_partial_convex_hull_iteration(
     V: dict,
     replay_buffer: dict,
     q_network,
-    discount_factor=0.05,
-    max_iterations=3,
+    discount_factor=0.02,
+    max_iterations=1,
     batch_size=25
 ):
     """
@@ -205,7 +204,6 @@ def sample_based_partial_convex_hull_iteration(
             V[s_key] = get_hull(combined)
         
     return V
-
 
 def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
     """
@@ -288,19 +286,18 @@ def get_ethical_weight_for_state(hull_points: np.ndarray) -> float:
                 # can't forcibly outscore this competitor with a finite w>0
                 print("Deom greater than 0.")
                 return 1.0
-            elif numerator <= 0:
+            elif numerator >= 0:
                 #print("Numerator less than 0. r1 = ", r1, "be1 = ", be1, "r0 = ", r0, "be0 = ", be0, "numerator = ", numerator)
                 return 1.0
             else:
                 print("numerator = ", numerator, "denom = ", denom, "tie_weight = ", numerator / denom)
             tie_weight = numerator / denom  # negative / negative => positive
             # To be strictly better, we must exceed tie_weight
-            if tie_weight > max_weight:
+            if tie_weight > max_weight and tie_weight < 3.5:
                 max_weight = tie_weight
                 print("weight", max_weight)
     
     return max_weight
-
 
 def compute_global_ethical_weight(all_state_hulls: dict, epsilon=0.001) -> float:
     """
